@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2016 retailsolutions AG. All rights reserved
+ */
+
 'use strict';
 
 const apiai = require('apiai');
@@ -7,6 +11,7 @@ const uuid = require('node-uuid');
 const request = require('request');
 const JSONbig = require('json-bigint');
 const async = require('async');
+const facebook = require('./facebook.js');
 
 const REST_PORT = (process.env.PORT || 5000);
 const APIAI_ACCESS_TOKEN = 'a25cbff13aff4f8d9f6bff7a49c51994' || process.env.APIAI_ACCESS_TOKEN;
@@ -42,6 +47,12 @@ function processEvent(event) {
                 let action = response.result.action;
 
                 console.log(JSON.stringify(response.result));
+
+                if (isDefined(action)) {
+                  if (action == "showOffers") {
+                    responseData.facebook = facebook.showOffers();
+                  }
+                }
 
                 if (isDefined(responseData) && isDefined(responseData.facebook)) {
                     try {

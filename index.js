@@ -56,7 +56,7 @@ function processEvent(event) {
                 if (isDefined(responseData) && isDefined(responseData.facebook)) {
                     try {
                         console.log('Response as formatted message');
-                        sendFBMessage(sender, responseData.facebook);
+                        sendFBMessage(sender, responseData.facebook.messageData);
                     } catch (err) {
                         sendFBMessage(sender, {
                             text: err.message

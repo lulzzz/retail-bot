@@ -36,7 +36,7 @@ function processEvent(event) {
         console.log("Text: ", input);
     }
 
-    if (input <> '') {
+    if (input.length > 0) {
         if (!sessionIds.has(sender)) {
             sessionIds.set(sender, uuid.v1());
         }

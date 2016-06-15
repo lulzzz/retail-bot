@@ -30,13 +30,13 @@ function processEvent(event) {
     var input = '';
     if (event.postback) {
         input = event.postback.payload;
-        console.log("Postback payload: ", input);
+        console.log("Postback payload:", input);
     } else if (event.message && event.message.text) {
         input = event.message.text;
-        console.log("Text: ", input);
+        console.log("Text:", input);
     }
 
-    if (input.length > 0) {
+    if (input && input.length > 0) {
         if (!sessionIds.has(sender)) {
             sessionIds.set(sender, uuid.v1());
         }

@@ -56,8 +56,6 @@ function processEvent(event) {
                 if (isDefined(responseData) && isDefined(responseData.facebook)) {
                     try {
                         console.log('Response as formatted message');
-                        console.log('responseData:');
-                        console.log(JSON.stringify(responseData));
                         sendFBMessage(sender, responseData.facebook);
                     } catch (err) {
                         sendFBMessage(sender, {

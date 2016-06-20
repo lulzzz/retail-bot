@@ -42,7 +42,13 @@ function processEvent(event) {
         }
 
         let apiaiRequest = apiAiService.textRequest(input, {
-            sessionId: sessionIds.get(sender)
+            sessionId: sessionIds.get(sender),
+            contexts: [{
+                name: "generic",
+                parameters: {
+                    fbid: sender
+                }
+            }]
         });
 
         apiaiRequest.on('response', (response) => {

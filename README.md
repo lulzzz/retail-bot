@@ -3,4 +3,13 @@
 # Retail Bot for Facebook Messenger
 running on api.ai
 
+## Features
+[...]
+
+## Examples
+[...]
+
+## About
+Latest update from [api-ai/api-ai-facebook](https://github.com/api-ai/api-ai-facebook) by 19.01.2017
+
 © [retailsolutions.ch](http://www.retailsolutions.ch/) - 2017

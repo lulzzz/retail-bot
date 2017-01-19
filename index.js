@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 retailsolutions AG. All rights reserved
+ * Copyright (C) 2017 retailsolutions AG. All rights reserved
  */
 
 'use strict';
@@ -18,15 +18,13 @@ const APIAI_LANG = process.env.APIAI_LANG || 'en';
 const FB_VERIFY_TOKEN = 'fb_verify_token' || process.env.FB_VERIFY_TOKEN;
 const FB_PAGE_ACCESS_TOKEN = 'EAAYi6V2nJVsBABhTcuCf500bKUGaIfgvsJo2c27xiXQpDEjhPZBCvN4jAGgUmoLkaR81zwgIhn7qNYpVpdwZAP1YVYK5tjlR6PXhsVCbKzsI8DM2TQ6CaiTxH2D2MjjbTgxPiFKrpuDgoDyoWZC7ep5vv69cXuBNmpDYJ84xgZDZD' || process.env.FB_PAGE_ACCESS_TOKEN;
 
-const apiAiService = apiai(APIAI_ACCESS_TOKEN, {
-    language: APIAI_LANG,
-    requestSource: "fb"
-});
+const apiAiService = apiai(APIAI_ACCESS_TOKEN, {language: APIAI_LANG, requestSource: "fb"});
 const sessionIds = new Map();
 
 function processEvent(event) {
     var sender = event.sender.id.toString();
 
+    //CSc 19.01.2017 - Input logs
     var input = '';
     if (event.postback) {
         input = event.postback.payload;
@@ -36,20 +34,37 @@ function processEvent(event) {
         console.log("Text:", input);
     }
 
-    if (input && input.length > 0) {
+    /*if (input && input.length > 0) { */
+    if ((event.message && event.message.text) || (event.postback && event.postback.payload)) {
+        var text = event.message ? event.message.text : event.postback.payload;
+        // Handle a text message from this sender
+
         if (!sessionIds.has(sender)) {
-            sessionIds.set(sender, uuid.v1());
+            sessionIds.set(sender, uuid.v4());
         }
 
-        let apiaiRequest = apiAiService.textRequest(input, {
-            sessionId: sessionIds.get(sender),
-            contexts: [{
-                name: "generic",
-                parameters: {
-                    fbid: sender
+        /*console.log("Text", text);*/
+
+        /*
+        let apiaiRequest = apiAiService.textRequest(text,
+            {
+                sessionId: sessionIds.get(sender),
+                contexts: [{
+                    name: "generic",
+                    parameters: {
+                        fbid: sender
+                    }
+                }]
+            });
+        */
+        let apiaiRequest = apiAiService.textRequest(text,
+            {
+                sessionId: sessionIds.get(sender),
+                originalRequest: {
+                    data: event,
+                    source: "facebook"
                 }
-            }]
-        });
+            });
 
         apiaiRequest.on('response', (response) => {
             if (isDefined(response.result)) {
@@ -60,12 +75,27 @@ function processEvent(event) {
                 console.log(JSON.stringify(response.result));
 
                 if (isDefined(responseData) && isDefined(responseData.facebook)) {
-                    try {
-                        console.log('Response as formatted message');
-                        sendFBMessage(sender, responseData.facebook);
-                    } catch (err) {
-                        sendFBMessage(sender, {
-                            text: err.message
+                    if (!Array.isArray(responseData.facebook)) {
+                        try {
+                            console.log('Response as formatted message');
+                            sendFBMessage(sender, responseData.facebook);
+                        } catch (err) {
+                            sendFBMessage(sender, {text: err.message});
+                        }
+                    } else {
+                        async.eachSeries(responseData.facebook, (facebookMessage, callback) => {
+                            try {
+                                if (facebookMessage.sender_action) {
+                                    console.log('Response as sender action');
+                                    sendFBSenderAction(sender, facebookMessage.sender_action, callback);
+                                }
+                                else {
+                                    console.log('Response as formatted message');
+                                    sendFBMessage(sender, facebookMessage, callback);
+                                }
+                            } catch (err) {
+                                sendFBMessage(sender, {text: err.message}, callback);
+                            }
                         });
                     }
                 } else if (isDefined(responseText)) {
@@ -75,9 +105,7 @@ function processEvent(event) {
                     var splittedText = splitResponse(responseText);
 
                     async.eachSeries(splittedText, (textPart, callback) => {
-                        sendFBMessage(sender, {
-                            text: textPart
-                        }, callback);
+                        sendFBMessage(sender, {text: textPart}, callback);
                     });
                 }
 
@@ -94,15 +122,11 @@ function splitResponse(str) {
         return [str];
     }
 
-    var result = chunkString(str, 300);
-
-    return result;
-
+    return chunkString(str, 300);
 }
 
 function chunkString(s, len) {
-    var curr = len,
-        prev = 0;
+    var curr = len, prev = 0;
 
     var output = [];
 
@@ -111,7 +135,8 @@ function chunkString(s, len) {
             output.push(s.substring(prev, curr));
             prev = curr;
             curr += len;
-        } else {
+        }
+        else {
             var currReverse = curr;
             do {
                 if (s.substring(currReverse - 1, currReverse) == ' ') {
@@ -131,17 +156,13 @@ function chunkString(s, len) {
 function sendFBMessage(sender, messageData, callback) {
     request({
         url: 'https://graph.facebook.com/v2.6/me/messages',
-        qs: {
-            access_token: FB_PAGE_ACCESS_TOKEN
-        },
+        qs: {access_token: FB_PAGE_ACCESS_TOKEN},
         method: 'POST',
         json: {
-            recipient: {
-                id: sender
-            },
+            recipient: {id: sender},
             message: messageData
         }
-    }, function(error, response, body) {
+    }, (error, response, body) => {
         if (error) {
             console.log('Error sending message: ', error);
         } else if (response.body.error) {
@@ -154,12 +175,35 @@ function sendFBMessage(sender, messageData, callback) {
     });
 }
 
+function sendFBSenderAction(sender, action, callback) {
+    setTimeout(() => {
+        request({
+            url: 'https://graph.facebook.com/v2.6/me/messages',
+            qs: {access_token: FB_PAGE_ACCESS_TOKEN},
+            method: 'POST',
+            json: {
+                recipient: {id: sender},
+                sender_action: action
+            }
+        }, (error, response, body) => {
+            if (error) {
+                console.log('Error sending action: ', error);
+            } else if (response.body.error) {
+                console.log('Error: ', response.body.error);
+            }
+            if (callback) {
+                callback();
+            }
+        });
+    }, 1000);
+}
+
 function doSubscribeRequest() {
     request({
             method: 'POST',
             uri: "https://graph.facebook.com/v2.6/me/subscribed_apps?access_token=" + FB_PAGE_ACCESS_TOKEN
         },
-        function(error, response, body) {
+        (error, response, body) => {
             if (error) {
                 console.error('Error while subscription: ', error);
             } else {
@@ -182,15 +226,13 @@ function isDefined(obj) {
 
 const app = express();
 
-app.use(bodyParser.text({
-    type: 'application/json'
-}));
+app.use(bodyParser.text({type: 'application/json'}));
 
-app.get('/webhook/', function(req, res) {
+app.get('/webhook/', (req, res) => {
     if (req.query['hub.verify_token'] == FB_VERIFY_TOKEN) {
         res.send(req.query['hub.challenge']);
 
-        setTimeout(function() {
+        setTimeout(() => {
             doSubscribeRequest();
         }, 3000);
     } else {
@@ -198,15 +240,32 @@ app.get('/webhook/', function(req, res) {
     }
 });
 
-app.post('/webhook/', function(req, res) {
+app.post('/webhook/', (req, res) => {
     try {
         var data = JSONbig.parse(req.body);
 
+        /*
         var messaging_events = data.entry[0].messaging;
         for (var i = 0; i < messaging_events.length; i++) {
             var event = data.entry[0].messaging[i];
             processEvent(event);
         }
+        */
+        if (data.entry) {
+            let entries = data.entry;
+            entries.forEach((entry) => {
+                let messaging_events = entry.messaging;
+                if (messaging_events) {
+                    messaging_events.forEach((event) => {
+                        if (event.message && !event.message.is_echo ||
+                            event.postback && event.postback.payload) {
+                            processEvent(event);
+                        }
+                    });
+                }
+            });
+        }
+
         return res.status(200).json({
             status: "ok"
         });
@@ -219,7 +278,7 @@ app.post('/webhook/', function(req, res) {
 
 });
 
-app.listen(REST_PORT, function() {
+app.listen(REST_PORT, () => {
     console.log('Rest service ready on port ' + REST_PORT);
 });
 

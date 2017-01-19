@@ -18,13 +18,13 @@
   },
   "homepage": "https://github.com/retailsolutionsgmbh/retail-bot#readme",
   "dependencies": {
-    "apiai": "^2.0.5",
-    "async": "^2.0.0-rc.6",
-    "body-parser": "^1.15.1",
+    "apiai": "^3.0.3",
+    "async": "^2.0.0",
+    "body-parser": "^1.15.2",
     "express": "^4.13.4",
     "html-entities": "^1.2.0",
     "json-bigint": "^0.2.0",
     "node-uuid": "^1.4.7",
-    "request": "^2.72.0"
+    "request": "^2.73.0"
   }
 }
